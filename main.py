@@ -30,8 +30,7 @@ REPLIES = {
     "уметь": "Я умею отвечать на ваши вопросы и помогать в различных ситуациях!"
 }
 
-
-# Кнопки для команды /start
+# Кнопки для сообщений
 def start_buttons():
     keyboard = [
         [InlineKeyboardButton("Информация", callback_data='info')],
@@ -40,12 +39,10 @@ def start_buttons():
     ]
     return InlineKeyboardMarkup(keyboard)
 
-
 # Функция-обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    reply_text = 'Привет! Я ваш бот. Как я могу помочь?'
+    reply_text = 'Здравствуйте! Я ваш персональный помощник по вопросам страхования. Выберите один из вариантов, и я подберу оптимальное решение для вас.'
     await update.message.reply_text(reply_text, reply_markup=start_buttons())
-
 
 # Функция-обработчик текстовых сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -65,25 +62,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 break
 
         if reply is None:
-            reply = "Я не знаю ответа на вопрос, могу перевести на оператора."
+            reply = "Я не знаю ответа на ваш вопрос. Могу перевести на оператора."
 
-        await update.message.reply_text(reply)
+        # Отправляем ответ с кнопками
+        await update.message.reply_text(reply, reply_markup=start_buttons())
     except Exception as e:
         logger.error(f"Ошибка обработки сообщения: {e}")
 
-
 # Функции для обработки нажатий на кнопки
 async def handle_info(query):
-    await query.edit_message_text(text="Это информация о нашем сервисе...")
-
+    await query.edit_message_text(text="Это информация о нашем сервисе...", reply_markup=start_buttons())
 
 async def handle_help(query):
-    await query.edit_message_text(text="Выберите, чем я могу вам помочь:")
-
+    await query.edit_message_text(text="Выберите, чем я могу вам помочь:", reply_markup=start_buttons())
 
 async def handle_contact_operator(query):
-    await query.edit_message_text(text="Переход на оператора. Пожалуйста, подождите...")
-
+    await query.edit_message_text(text="Переход на оператора. Пожалуйста, подождите...", reply_markup=start_buttons())
 
 # Обработчик кнопок
 BUTTON_HANDLERS = {
@@ -91,7 +85,6 @@ BUTTON_HANDLERS = {
     'help': handle_help,
     'contact_operator': handle_contact_operator,
 }
-
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -103,9 +96,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         logger.warning(f"Неизвестная команда кнопки: {query.data}")
 
-
 # Функция для запуска бота
 def main():
+    logger.info("Запуск бота...")
     # Создаем объект Application и передаем ему токен вашего бота.
     application = Application.builder().token(TOKEN).build()
 
@@ -121,8 +114,8 @@ def main():
     # Запускаем бота
     logger.info("Бот запущен и готов принимать сообщения.")
     application.run_polling()
-    application.idle()  # Блокирует завершение программы, пока бот работает
 
+    logger.info("Бот завершил работу.")
 
 # Запуск скрипта
 if __name__ == '__main__':
