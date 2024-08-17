@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-import pymorphy2
 from pymorphy2 import MorphAnalyzer
 
 # Загружаем переменные окружения
@@ -23,26 +22,52 @@ logger = logging.getLogger(__name__)
 # Инициализируем pymorphy2
 morph = MorphAnalyzer()
 
-# Словарь с предопределёнными ответами (с использованием лемматизированных слов)
+# Словарь с предопределёнными ответами
 REPLIES = {
-    "привет": "Здравствуйте! Как я могу помочь вам сегодня?",
-    "дело": "Спасибо, у меня всё хорошо! А как у вас?",
-    "уметь": "Я умею отвечать на ваши вопросы и помогать в различных ситуациях!"
+    "привет": "Здравствуйте!",
+    "здравствуйте": "Здравствуйте!",
 }
 
-# Кнопки для сообщений
-def start_buttons():
-    keyboard = [
-        [InlineKeyboardButton("Информация", callback_data='info')],
-        [InlineKeyboardButton("Помощь", callback_data='help')],
-        [InlineKeyboardButton("Связаться с оператором", callback_data='contact_operator')]
-    ]
+# Словарь для хранения состояния пользователей
+user_states = {}
+
+# Функция для создания кнопок в зависимости от состояния
+def create_buttons(state):
+    keyboard = []
+
+    if state == 'start':
+        keyboard = [
+            [InlineKeyboardButton("Наши соц.сети", callback_data='massengers'),
+             InlineKeyboardButton("Наш сайт", callback_data='site')],
+            [InlineKeyboardButton("Расчет стоимости страхования", callback_data='summStraxovki'),
+             InlineKeyboardButton("Связаться с оператором", callback_data='contact_operator')]
+        ]
+    elif state == 'massengers':
+        keyboard = [
+            [InlineKeyboardButton("Назад", callback_data='start')]
+        ]
+    elif state == 'site':
+        keyboard = [
+            [InlineKeyboardButton("Назад", callback_data='start')]
+        ]
+    elif state == 'summStraxovki':
+        keyboard = [
+            [InlineKeyboardButton("Назад", callback_data='start')]
+        ]
+    elif state == 'contact_operator':
+        keyboard = [
+            [InlineKeyboardButton("Назад", callback_data='start')]
+        ]
+
     return InlineKeyboardMarkup(keyboard)
 
 # Функция-обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    reply_text = 'Здравствуйте! Я ваш персональный помощник по вопросам страхования. Выберите один из вариантов, и я подберу оптимальное решение для вас.'
-    await update.message.reply_text(reply_text, reply_markup=start_buttons())
+    if update.message:  # Проверяем, что update содержит message
+        user_id = update.effective_user.id
+        user_states[user_id] = 'start'  # Устанавливаем начальное состояние
+        reply_text = 'Здравствуйте! Я ваш персональный помощник по вопросам страхования. Выберите один из вариантов, и я подберу оптимальное решение для вас.'
+        await update.message.reply_text(reply_text, reply_markup=create_buttons('start'))
 
 # Функция-обработчик текстовых сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -65,36 +90,65 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             reply = "Я не знаю ответа на ваш вопрос. Могу перевести на оператора."
 
         # Отправляем ответ с кнопками
-        await update.message.reply_text(reply, reply_markup=start_buttons())
+        user_id = update.effective_user.id
+        current_state = user_states.get(user_id, 'start')
+        await update.message.reply_text(reply, reply_markup=create_buttons(current_state))
     except Exception as e:
         logger.error(f"Ошибка обработки сообщения: {e}")
 
 # Функции для обработки нажатий на кнопки
-async def handle_info(query):
-    await query.edit_message_text(text="Это информация о нашем сервисе...", reply_markup=start_buttons())
+async def handle_massengers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    user_states[user_id] = 'massengers'
+    await query.edit_message_text(text="Наши соц.сети: [Ссылка на соц.сети]", reply_markup=create_buttons('massengers'))
 
-async def handle_help(query):
-    await query.edit_message_text(text="Выберите, чем я могу вам помочь:", reply_markup=start_buttons())
+async def handle_site(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    user_states[user_id] = 'site'
+    await query.edit_message_text(text="Наш сайт: [Ссылка на сайт]", reply_markup=create_buttons('site'))
 
-async def handle_contact_operator(query):
-    await query.edit_message_text(text="Переход на оператора. Пожалуйста, подождите...", reply_markup=start_buttons())
+async def handle_summStraxovki(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    user_states[user_id] = 'summStraxovki'
+    await query.edit_message_text(text="Расчет стоимости страхования: [Ссылка на расчет]", reply_markup=create_buttons('summStraxovki'))
 
-# Обработчик кнопок
+async def handle_contact_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    user_states[user_id] = 'contact_operator'
+    await query.edit_message_text(text="Переход на оператора. Пожалуйста, подождите...", reply_markup=create_buttons('contact_operator'))
+
+# Определяем обработчики кнопок
 BUTTON_HANDLERS = {
-    'info': handle_info,
-    'help': handle_help,
+    'massengers': handle_massengers,
+    'site': handle_site,
+    'summStraxovki': handle_summStraxovki,
     'contact_operator': handle_contact_operator,
 }
 
+# Обработчик кнопок
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()  # Подтверждаем нажатие на кнопку
+    user_id = query.from_user.id
+    callback_data = query.data
 
-    handler = BUTTON_HANDLERS.get(query.data)
-    if handler:
-        await handler(query)
+    # Проверяем, если это кнопка "Назад"
+    if callback_data == 'start':
+        user_states[user_id] = 'start'
+        await query.edit_message_text(text="Выберите один из вариантов:", reply_markup=create_buttons('start'))
     else:
-        logger.warning(f"Неизвестная команда кнопки: {query.data}")
+        handler = BUTTON_HANDLERS.get(callback_data)
+        if handler:
+            await handler(update, context)  # Передаем оба параметра
+        else:
+            logger.warning(f"Неизвестная команда кнопки: {callback_data}")
 
 # Функция для запуска бота
 def main():
@@ -114,8 +168,6 @@ def main():
     # Запускаем бота
     logger.info("Бот запущен и готов принимать сообщения.")
     application.run_polling()
-
-    logger.info("Бот завершил работу.")
 
 # Запуск скрипта
 if __name__ == '__main__':
